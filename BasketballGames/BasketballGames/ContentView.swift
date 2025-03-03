@@ -3,53 +3,72 @@
 
 import SwiftUI
 
-struct Response: Codable{
-    var games: [Game]
+struct Response: Codable {
+    var results: [Game]
 }
-struct Score: Codable, Hashable{
+
+struct Score: Codable {
     var unc: Int
     var opponent: Int
 }
 
-struct Game: Codable, Identifiable{
+struct Game: Codable, Identifiable {
     var id: Int
     var team: String
+    var isHomeGame: Bool
     var opponent: String
     var date: String
     var score: Score
-    var isHomeGame: Bool
-    var scoreSummary: String{
-        "Score: UNC \(score.unc) - \(score.opponent) \(opponent)"
-    }
 }
 
 struct ContentView: View {
-    @State private var games = [Game]()
+    @State private var results = [Game]()
     var body: some View {
-        List(games){game in
-                VStack(alignment: .leading){
-                    Text("\(game.team) Basketball vs. \(game.opponent)")
-                        .font(.headline)
-                    Text(game.scoreSummary)
-                    Text("Date: \(game.date)")
+        NavigationView {
+            List(results, id: \.id) { game in
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text("\(game.team) vs \(game.opponent)")
+                            .font(.headline)
+                            .fontWeight(.regular)
+                        Spacer()
+                        Text("\(game.score.unc) - \(game.score.opponent)")
+                            .font(.headline)
+                            .fontWeight(.regular)
+                    }
+                    HStack {
+                        Text(game.date)
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        Spacer()
+                        Text(game.isHomeGame ? "Home" : "Away")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
                 }
             }
-            .task{
-                await loadData()
+            .navigationTitle("UNC Basketball")
+        }
+        .task {
+            await loadData()
+        }
     }
-}
-    func loadData() async{
-        guard let url = URL(string: "https://api.samuelshi.com/uncbasketball")else{
+
+    func loadData() async {
+        guard let url = URL(string: "https://api.samuelshi.com/uncbasketball") else {
             print("Invalid URL")
             return
         }
-        do{
-            let(data, _) = try await URLSession.shared.data(from: url)
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
             if let decodedResponse = try?
-                JSONDecoder().decode(Response.self, from: data){
-                games = decodedResponse.games
+                JSONDecoder().decode(Response.self, from: data)
+            {
+                results = decodedResponse.results
+            } else if let decodedResponse = try? JSONDecoder().decode([Game].self, from: data) {
+                results = decodedResponse
             }
-        }catch{
+        } catch {
             print("Invalid data")
         }
     }
